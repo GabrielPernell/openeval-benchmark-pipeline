@@ -1,0 +1,11 @@
+# Generated conversion output + validation reports (regenerable; ~100 MB)
+output/
+
+# Internal working notes: contains third-party contact details and
+# in-progress assessments of other groups' releases.
+openeval_context_handoff.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
