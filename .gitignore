@@ -11,3 +11,7 @@ openeval_context_handoff.md
 __pycache__/
 *.py[cod]
 .venv/
+
+# Local demonstration fixture: deliberately broken items used to learn how
+# validator.py classifies violations. Not part of the pipeline.
+broken_item_examples.json
