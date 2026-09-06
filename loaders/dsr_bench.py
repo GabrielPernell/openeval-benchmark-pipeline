@@ -120,5 +120,24 @@ class DSRBenchAdapter(DatasetAdapter):
             "tags": tags,
         }
 
+    def repo_source_name(self) -> str:
+        return "DSR-Bench"
+
+    def repo_input(self, row: dict) -> dict:
+        # Subset lives on the item, not as a separate bench/ entry -- matching
+        # how HarmBench keeps standard/contextual under one benchmark.
+        q = row["question"]
+        payload = {"question": q if isinstance(q, str) else list(q), "subset": self.subset}
+        for col in ("category", "task", "operation", "length", "dimension", "mode"):
+            if row.get(col) is not None:
+                payload[col] = row[col]
+        if row.get("prompt") is not None:
+            payload["prompt_style"] = row["prompt"]
+        payload["source_item_id"] = row["question_id"]
+        return payload
+
+    def repo_references(self, row: dict) -> list:
+        return [str(row["ground_truth"])]
+
     def row_uid(self, row: dict) -> str:
         return row["question_id"]

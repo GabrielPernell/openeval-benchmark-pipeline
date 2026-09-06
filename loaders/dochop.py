@@ -77,6 +77,11 @@ class DocHopAdapter(DatasetAdapter):
         if mode == "hf":
             # Metadata-only read straight from the parquet conversion; the
             # image column is never transferred.
+            import os as _os, sys as _sys
+            _fetchers = _os.path.join(
+                _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "fetchers")
+            if _fetchers not in _sys.path:
+                _sys.path.insert(0, _fetchers)
             from fetch_dochop_cache import fetch_rows
             return fetch_rows(limit=limit)
 
@@ -121,6 +126,29 @@ class DocHopAdapter(DatasetAdapter):
                 f"chart_num:{row['chart_num']}",
             ],
         }
+
+    def repo_source_name(self) -> str:
+        return "DocHop"
+
+    def repo_input(self, row: dict) -> dict:
+        payload = {
+            "question": str(row["question"]),
+            "task": row.get("task"),
+            "depth": row.get("depth"),
+            "chart_num": row.get("chart_num"),
+            "source_item_id": str(row["original_id"]),
+        }
+        if row.get("image_path"):
+            payload["image"] = row["image_path"]
+        else:
+            payload["image_ref"] = {
+                "dataset": REPO_ID, "config": CONFIG, "split": SPLIT,
+                "row_index": row["index"], "column": "image", "encoding": "base64-png",
+            }
+        return payload
+
+    def repo_references(self, row: dict) -> list:
+        return [str(row["answer"])]
 
     def row_uid(self, row: dict) -> str:
         return str(row["original_id"])

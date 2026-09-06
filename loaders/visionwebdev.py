@@ -175,5 +175,28 @@ class VisionWebDevAdapter(DatasetAdapter):
 
         return {"input": inputs, "references": references, "tags": tags}
 
+    def repo_source_name(self) -> str:
+        return "VisionWebDev"
+
+    def repo_input(self, row: dict) -> dict:
+        level, _ = SUBSETS[self.subset]
+        payload = {
+            "task_type": self.subset,   # webpage | frontend | website
+            "level": level,
+            "prototypes": [f"{self.subset}/{row['task_name']}/prototypes/{p}"
+                           for p in row.get("prototypes", [])],
+            "workflow_steps": row.get("workflow_steps"),
+            "num_test_cases": row.get("num_test_cases"),
+            "source_item_id": row["task_name"],
+        }
+        text = row.get("prompt") or row.get("prd")
+        if text:
+            payload["prd" if self.subset == "website" else "prompt"] = text
+        return payload
+
+    def repo_references(self, row: dict) -> list:
+        wf = row.get("workflow")
+        return [wf] if wf else []
+
     def row_uid(self, row: dict) -> str:
         return f"{self.subset}/{row['task_name']}"

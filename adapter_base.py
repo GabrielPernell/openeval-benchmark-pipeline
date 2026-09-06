@@ -38,6 +38,23 @@ class DatasetAdapter:
         """Map one raw row -> {"input": list[str|dict], "references": list[str|dict], "tags": list[str]}."""
         raise NotImplementedError
 
+    def repo_source_name(self) -> str:
+        """Bare benchmark name used as item_metadata.source (a FK into bench/)."""
+        return self.benchmark_name
+
+    def repo_input(self, row: dict) -> dict:
+        """Dict serialised into item_content.input[0] for the HF repo layout.
+
+        The repo's item schema has no field for per-item metadata, so the
+        question and its metadata travel together as one JSON string -- the
+        convention the existing HarmBench/BBQ items follow.
+        """
+        raise NotImplementedError
+
+    def repo_references(self, row: dict) -> list:
+        """References for the repo layout; non-strings are JSON-serialised."""
+        raise NotImplementedError
+
     def row_uid(self, row: dict) -> str:
         """Return a stable identifier for `row`, used only for logging / de-duplication."""
         raise NotImplementedError

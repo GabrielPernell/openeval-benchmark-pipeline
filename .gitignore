@@ -1,17 +1,30 @@
+# Internal working notes: third-party contact details and in-progress
+# assessments of other groups' releases.
+openeval_context_handoff.md
+
+# Local demonstration fixture: deliberately broken items used to learn how
+# validator.py classifies violations. Not part of the pipeline.
+broken_item_examples.json
+
+# Scratch work for reviewing incoming HF dataset PRs.
+pr_review/
+
 # Validation reports are regenerable logs (~60 MB, and PowerShell writes them
-# as UTF-16). The converted items in output/*.json ARE the deliverable and are
-# tracked so they can be handed off directly.
+# as UTF-16). The converted items in output/*.json ARE the deliverable.
 output/validation*
 
-# Internal working notes: contains third-party contact details and
-# in-progress assessments of other groups' releases.
-openeval_context_handoff.md
+# Model-summary ID listings are ~190 MB each and regenerable from parts/.
+# The counts, tables, and merge audits are small and are tracked.
+summaries_output/
+model_summary/parts/
+model_summary/*_full.json
+*.zip
+
+# Run logs
+*.log
+repo_export_log.txt
 
 # Python
 __pycache__/
 *.py[cod]
 .venv/
-
-# Local demonstration fixture: deliberately broken items used to learn how
-# validator.py classifies violations. Not part of the pipeline.
-broken_item_examples.json

@@ -34,7 +34,8 @@ import os
 import sys
 import tarfile
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# The pipeline modules live in the parent directory.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from net_utils import fetch_hf_rows, get_with_retry
 from loaders.visionwebdev import REPO_ID, SUBSETS
