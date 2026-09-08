@@ -28,3 +28,8 @@ repo_export_log.txt
 __pycache__/
 *.py[cod]
 .venv/
+
+# The nested JSON with responses is ~139 MB and duplicates the response
+# parquet tables, which are the deliverable. Regenerate it with
+# add_dochop_responses.py against the authors' results directory.
+output_with_responses/*.json
