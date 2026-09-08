@@ -66,8 +66,13 @@ def _jsonify(value):
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
-def build_repo_item(row, adapter, idx, ingestion_time, contributor):
-    """One raw row -> one repo-shaped item dict."""
+def build_repo_item(row, adapter, idx, ingestion_time, contributor, item_id=None):
+    """One raw row -> one repo-shaped item dict.
+
+    `item_id` overrides the generated id. Pass it when the items already exist
+    elsewhere (e.g. responses were built against them): a regenerated id would
+    silently break the item<->response join.
+    """
     payload = adapter.repo_input(row)
     if not isinstance(payload, dict) or not payload:
         raise ValueError(f"repo_input() must return a non-empty dict (row {idx})")
@@ -75,7 +80,8 @@ def build_repo_item(row, adapter, idx, ingestion_time, contributor):
     refs = [_jsonify(r) for r in adapter.repo_references(row)]
 
     return {
-        "item_id": f"{adapter.repo_source_name()}_{ingestion_time}_{idx}",
+        # Repo convention: [lowercased benchmark name]_[timestamp]_[index].
+        "item_id": item_id or f"{adapter.repo_source_name().lower()}_{ingestion_time}_{idx}",
         "item_metadata": {
             "ingestion_time": ingestion_time,
             "contributor": contributor,

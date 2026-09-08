@@ -37,7 +37,20 @@ def get_with_retry(url: str, params: dict | None = None, timeout: int = 30, stre
     delay = 2.0
     last_status = None
     for attempt in range(MAX_RETRIES):
-        resp = requests.get(url, params=params, headers=hf_headers(), timeout=timeout, stream=stream)
+        try:
+            resp = requests.get(url, params=params, headers=hf_headers(),
+                                timeout=timeout, stream=stream)
+        except requests.RequestException as exc:
+            # Timeouts and dropped connections are as transient as a 503 and
+            # must not kill a long paginated fetch.
+            if attempt == MAX_RETRIES - 1:
+                raise
+            wait = delay + random.uniform(0, 1)
+            print(f"      ! {type(exc).__name__} -- retry {attempt + 1}/{MAX_RETRIES - 1} "
+                  f"in {wait:.0f}s", file=sys.stderr)
+            time.sleep(wait)
+            delay = min(delay * 2, 60.0)
+            continue
         if resp.status_code == 200:
             return resp
 

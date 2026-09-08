@@ -17,6 +17,7 @@ python export_repo_parquet.py --out repo_export \
     --contributor-name "..." --contributor-email "..." --contributor-affiliation "..."
 """
 import argparse
+import json
 import os
 import sys
 
@@ -74,6 +75,9 @@ def main():
     ap.add_argument("--out", default="repo_export")
     ap.add_argument("--only", default=None, help="convert just one benchmark slug")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--preserve-ids-from", default=None, metavar="JSON",
+                    help="reuse item_ids from an existing converted items JSON, so "
+                         "responses built against those ids still join")
     ap.add_argument("--contributor-name", default="Anonymous")
     ap.add_argument("--contributor-email", default="")
     ap.add_argument("--contributor-affiliation", default="")
@@ -88,6 +92,11 @@ def main():
         todo = {args.only: todo[args.only]}
 
     for slug, (sources, bench_row) in todo.items():
+        preserved = None
+        if args.preserve_ids_from:
+            prior = json.load(open(args.preserve_ids_from, encoding="utf-8"))
+            preserved = [p["item_id"] for p in prior]
+            prior_refs = [p["item_content"]["references"] for p in prior]
         items = []
         for adapter, source, mode in sources:
             label = getattr(adapter, "subset", "-")
@@ -95,7 +104,9 @@ def main():
             rows = list(adapter.load_rows(source, limit=args.limit, mode=mode))
             # idx continues across subsets so item_ids stay unique per benchmark
             for row in rows:
-                items.append(build_repo_item(row, adapter, len(items), ingestion_time, contributor))
+                existing = preserved[len(items)] if preserved else None
+                items.append(build_repo_item(row, adapter, len(items), ingestion_time,
+                                             contributor, item_id=existing))
             print(f"[{slug}/{label}] -> {len(rows)} rows (running total {len(items)})", file=sys.stderr)
 
         paths = write_items(items, os.path.join(args.out, "item"), slug)
