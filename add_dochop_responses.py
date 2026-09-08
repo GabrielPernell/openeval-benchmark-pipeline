@@ -43,6 +43,29 @@ from response_format import build_response_json, json_to_parquet_row, write_resp
 
 METRIC_NAME = "heuristic_accuracy"
 
+# Appendix F of the paper (arXiv:2609.02059): "we set the maximum generation
+# length for all models to 2^14 tokens whenever supported". Temperature, top_p,
+# top_k and sampling mode are never stated anywhere -- paper, project page,
+# harness or results -- so they stay null rather than being guessed.
+MAX_TOKENS = 2 ** 14
+
+# Appendix E describes a "unified system-style instruction" appended to every
+# question. Taken verbatim from their harness (vlmeval/dataset/dochop.py:
+# build_prompt's intro + SHARED_INSTRUCTION) rather than retyped from the PDF.
+SYSTEM_INSTRUCTION = (
+    "\nThe image provided is a document page containing both text and chart(s). "
+    "Please read the text within the image and analyze the chart(s) to answer the question. "
+    "\n\nYour final answer should be a single pure value:"
+    "\n- If the question asks for an entity, use its complete name exactly as shown in the chart"
+    "\n- If the answer is a number: output integers as integers, decimals rounded to two places"
+    " (unless the question specifies otherwise)"
+    "\n- Otherwise, follow the question's instructions for the expected format"
+    "\n\nDo not include units, currency symbols, or percentage signs in your final answer."
+    "\n\nAt the end of your response, format the final answer in a separate sentence like this:\n"
+    "The answer is: <your_final_answer>"
+)
+
+
 # The repo already lists this model in lowercase. Matching the existing
 # spelling avoids adding another case-variant duplicate of a model that is
 # already there -- the problem the model summary surfaced. Every other model
@@ -156,6 +179,10 @@ def main():
                                               "content": extracted}]}],
                 external_resources=[{"type": "document_image",
                                      "content": r["image_path"]}],
+                system_instruction=SYSTEM_INSTRUCTION,
+                generation_parameters={"temperature": None, "do_sample": None,
+                                       "top_k": None, "top_p": None,
+                                       "max_tokens": MAX_TOKENS},
             )
             item["responses"].append(resp)
             parquet_rows.append(json_to_parquet_row(resp))
