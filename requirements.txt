@@ -1,0 +1,6 @@
+# Install with: pip install -r requirements.txt
+requests            # HuggingFace REST + raw file fetches (net_utils)
+pyarrow             # reads/writes the HF dataset's parquet tables
+fsspec              # range reads over HTTP, so remote parquet is read by column
+jsonlines           # imported at the top of validator.py (kept verbatim upstream)
+openpyxl            # reads the DocHop authors' .xlsx result files

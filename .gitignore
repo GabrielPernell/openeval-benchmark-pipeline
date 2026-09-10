@@ -6,8 +6,10 @@ openeval_context_handoff.md
 # validator.py classifies violations. Not part of the pipeline.
 broken_item_examples.json
 
-# Scratch work for reviewing incoming HF dataset PRs.
-pr_review/
+# Tooling for reviewing incoming HF dataset PRs is tracked; the id dumps,
+# reports and downloaded artifacts it produces are not.
+pr_review/*
+!pr_review/*.py
 
 # Validation reports are regenerable logs (~60 MB, and PowerShell writes them
 # as UTF-16). The converted items in output/*.json ARE the deliverable.
