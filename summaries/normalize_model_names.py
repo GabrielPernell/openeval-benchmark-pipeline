@@ -20,9 +20,10 @@ Reads the per-benchmark part files written by build_model_summary.py and writes
 new outputs alongside them; nothing existing is modified.
 
 Merging unions the item sets of the spellings involved, so a model that was run
-on different items under different names ends up with its true coverage. The
-audit file records every merge and flags any items covered under more than one
-spelling (which would mean genuinely duplicated responses).
+on different items under different names ends up with its true coverage.
+Responses are SUMMED rather than unioned: two spellings answering the same item
+are two real responses. That overlap is what the audit file flags as
+"items_covered_by_more_than_one_spelling" -- genuinely duplicated responses.
 """
 import argparse
 import collections
@@ -30,6 +31,7 @@ import glob
 import json
 import os
 import re
+import sys
 
 from summary_table import render_table
 
@@ -59,6 +61,13 @@ def main():
     part_paths = sorted(glob.glob(os.path.join(args.parts, "*.json")))
     parts = [json.load(open(p, encoding="utf-8")) for p in part_paths]
 
+    # Older part files predate response counts. Merging them would report 0
+    # responses for every model rather than failing, so refuse instead.
+    stale = [os.path.basename(p) for p, part in zip(part_paths, parts) if "responses" not in part]
+    if stale:
+        sys.exit(f"{len(stale)} part file(s) have no response counts (e.g. {stale[:3]}); "
+                 "re-run build_model_summary.py, which rebuilds outdated parts automatically.")
+
     # Pass 1: build ONE canonical name map across every benchmark. Most
     # collisions are cross-benchmark (Phi-4 in one, phi-4 in another), so
     # grouping per benchmark would leave the global model count unchanged and
@@ -77,15 +86,18 @@ def main():
     n_before = set(all_names)
     n_after = set(display_of.values())
 
-    # Pass 2: apply the global map, unioning item sets where names collapse.
+    # Pass 2: apply the global map, unioning item sets and summing responses
+    # where names collapse.
     for part in parts:
         key, models, n_items = part["key"], part["models"], part["n_items"]
+        resp = part["responses"]
         by_display = collections.defaultdict(list)
         for name in models:
             by_display[display_of[name]].append(name)
 
-        out = {}
+        out, out_resp = {}, {}
         for display, spellings in sorted(by_display.items()):
+            out_resp[display] = sum(resp.get(s_, 0) for s_ in spellings)
             if len(spellings) == 1:
                 out[display] = models[spellings[0]]
                 continue
@@ -99,11 +111,14 @@ def main():
                 "items_per_spelling": {s_: len(models[s_]) for s_ in spellings},
                 "items_after_merge": len(union),
                 "items_covered_by_more_than_one_spelling": overlap,
+                "responses_per_spelling": {s_: resp.get(s_, 0) for s_ in spellings},
+                "responses_after_merge": out_resp[display],
             })
 
         merged_all[key] = out
         counts[key] = {m: {"n_items": len(v),
-                           "coverage": round(100.0 * len(v) / n_items, 1) if n_items else None}
+                           "coverage": round(100.0 * len(v) / n_items, 1) if n_items else None,
+                           "responses": out_resp[m]}
                        for m, v in out.items()}
 
     # Record the full name map too, so the merge is auditable and reversible.
@@ -128,6 +143,7 @@ def main():
           f"across {len(groups_only)} benchmarks")
     print(f"[{tag}] renamed spellings: {len(audit['_name_map'])}")
     print(f"[{tag}] items covered under more than one spelling: {dup}")
+    print(f"[{tag}] responses: {sum(m['responses'] for b in counts.values() for m in b.values())}")
 
 
 if __name__ == "__main__":

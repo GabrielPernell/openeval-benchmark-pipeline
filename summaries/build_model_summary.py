@@ -3,16 +3,21 @@
 build_model_summary.py
 =======================
 Build a model-coverage summary for the OpenEval HF dataset: for every
-benchmark, which models have responses, and which items each one covers.
+benchmark, which models have responses, which items each one covers, and how
+many responses each one contributed.
 
 Coverage is NOT a complete grid -- models are added in waves and can be missing
 from a benchmark or have gaps inside one -- so "model X was evaluated on
 benchmark Y" does not imply it covers all of Y's items. That is what this
 records.
 
-Two artifacts are written:
+Items covered and responses are different numbers. A model run several times on
+the same item (trials 0, 1, 2 at the end of the response_id) covers that item
+once but contributes several responses, so both are recorded.
+
+Artifacts written:
   <out>/model_summary_full.json    {benchmark: {model: [item_id, ...]}}
-  <out>/model_summary_counts.json  {benchmark: {model: {n_items, coverage}}}
+  <out>/model_summary_counts.json  {benchmark: {model: {n_items, coverage, responses}}}
   <out>/model_summary_counts.md    the same counts as a README-ready table
 
 Method
@@ -20,7 +25,9 @@ Method
 The response tables carry no item_id column, so it is recovered from
 response_id, which follows `[item_id]_[model-slug]_[trial]`. Every recovered id
 is checked against the item table's real ids; anything that fails to parse is
-counted and reported rather than silently becoming a fake id.
+counted and reported rather than silently becoming a fake id. Such a response
+still counts toward its model's responses -- it exists, it just can't be tied
+to an item.
 
 Only the `response_id` and `model.name` leaf columns are read. Parquet is
 columnar and HuggingFace serves range requests, so this touches a small
@@ -44,6 +51,11 @@ BASE = f"https://huggingface.co/datasets/{REPO}/resolve/main/"
 API = f"https://huggingface.co/api/datasets/{REPO}/tree/main/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 SHARD_RE = re.compile(r"-\d{5}-of-\d{5}\.parquet$")
+
+# Bump whenever the part file format changes. A part written in an older format
+# is rebuilt rather than reused, so adding a field can't leave stale cached
+# parts silently missing it. v2 added per-model response counts.
+PART_VERSION = 2
 
 
 def model_slug(name: str) -> str:
@@ -69,6 +81,17 @@ def with_retry(fn, what, attempts=5):
                   f"in {delay:.0f}s", file=sys.stderr)
             time.sleep(delay)
             delay = min(delay * 2, 60)
+
+
+def part_version(path: str):
+    """Read a part file's format version without parsing the whole file.
+
+    Parts can run to tens of MB, and "version" is written as the first key, so
+    the first few bytes are enough.
+    """
+    with open(path, encoding="utf-8") as f:
+        m = re.match(r'\{"version":\s*(\d+)', f.read(64))
+    return int(m.group(1)) if m else 1
 
 
 def list_tables(kind: str) -> dict:
@@ -128,11 +151,16 @@ def main():
     for stem in stems:
         part = os.path.join(parts_dir, f"{stem}.json")
         if os.path.exists(part):
-            print(f"  {stem:<24} (already done, skipping)", file=sys.stderr)
-            continue
+            cached = part_version(part)
+            if cached == PART_VERSION:
+                print(f"  {stem:<24} (already done, skipping)", file=sys.stderr)
+                continue
+            print(f"  {stem:<24} (cached part is format v{cached}, rebuilding)",
+                  file=sys.stderr)
         known = with_retry(lambda: item_ids_for(items[stem], fs), f"{stem} items")
         key = next(iter(known)).rsplit("_", 2)[0] if known else stem
         by_model = collections.defaultdict(set)
+        responses_by_model = collections.Counter()
         unparsed = 0
         for p in responses[stem]:
             def read_shard(p=p):
@@ -149,20 +177,30 @@ def main():
                 return out
             for rids, names in with_retry(read_shard, p.split("/")[-1]):
                 for rid, mname in zip(rids, names):
+                    # Every row is a response from this model, whether or not
+                    # its item_id can be recovered.
+                    responses_by_model[mname] += 1
                     iid = item_id_from(rid, mname or "", known)
                     if iid is None:
                         unparsed += 1
                         continue
                     by_model[mname].add(iid)
+        models_here = sorted(set(by_model) | set(responses_by_model))
         with open(part, "w", encoding="utf-8") as f:
-            json.dump({"key": key, "n_items": len(known), "unparsed": unparsed,
-                       "models": {m: sorted(v) for m, v in sorted(by_model.items())}}, f)
-        print(f"  {key:<24} items={len(known):<7} models={len(by_model):<4} "
-              f"unparsed={unparsed}", file=sys.stderr)
+            # "version" must stay the first key -- part_version() reads it from
+            # the start of the file.
+            json.dump({"version": PART_VERSION, "key": key, "n_items": len(known),
+                       "unparsed": unparsed,
+                       "responses": {m: responses_by_model[m] for m in models_here},
+                       "models": {m: sorted(by_model.get(m, ())) for m in models_here}}, f)
+        print(f"  {key:<24} items={len(known):<7} models={len(models_here):<4} "
+              f"responses={sum(responses_by_model.values()):<9} unparsed={unparsed}",
+              file=sys.stderr)
 
     # ---- merge parts ----
     counts = {}
     unparsed_total = 0
+    responses_total = 0
     full_path = os.path.join(args.out, "model_summary_full.json")
     with open(full_path, "w", encoding="utf-8") as full:
         full.write("{" + chr(10))
@@ -171,10 +209,13 @@ def main():
             with open(pf_path, encoding="utf-8") as f:
                 part = json.load(f)
             key, models, n_items = part["key"], part["models"], part["n_items"]
+            resp = part["responses"]
             unparsed_total += part["unparsed"]
+            responses_total += sum(resp.values())
             counts[key] = {
                 m: {"n_items": len(v),
-                    "coverage": round(100.0 * len(v) / n_items, 1) if n_items else None}
+                    "coverage": round(100.0 * len(v) / n_items, 1) if n_items else None,
+                    "responses": resp.get(m, 0)}
                 for m, v in models.items()
             }
             full.write(f"  {json.dumps(key)}: {json.dumps(models)}")
@@ -196,7 +237,8 @@ def main():
 
     all_models = sorted({m for b in counts.values() for m in b})
     print(f"\ndone: {len(counts)} benchmarks, {len(all_models)} distinct models, "
-          f"{unparsed_total} unparsed response_ids", file=sys.stderr)
+          f"{responses_total} responses, {unparsed_total} unparsed response_ids",
+          file=sys.stderr)
     print(f"  {full_path} ({os.path.getsize(full_path)/1e6:.1f} MB)", file=sys.stderr)
 
 

@@ -11,7 +11,12 @@
         "llama-2-7b-hf": 999
       },
       "items_after_merge": 3846,
-      "items_covered_by_more_than_one_spelling": 58
+      "items_covered_by_more_than_one_spelling": 58,
+      "responses_per_spelling": {
+        "Llama-2-7b-hf": 7263,
+        "llama-2-7b-hf": 1000
+      },
+      "responses_after_merge": 8263
     },
     {
       "canonical": "qwen-1.5-0.5b-chat",
@@ -24,7 +29,12 @@
         "qwen-1.5-0.5b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen1.5-0.5B-Chat": 146230,
+        "qwen-1.5-0.5b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-1.5-1.8b-chat",
@@ -37,7 +47,12 @@
         "qwen-1.5-1.8b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen1.5-1.8B-Chat": 146230,
+        "qwen-1.5-1.8b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-1.5-14b-chat",
@@ -50,7 +65,12 @@
         "qwen-1.5-14b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen1.5-14B-Chat": 146230,
+        "qwen-1.5-14b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-1.5-4b-chat",
@@ -63,7 +83,12 @@
         "qwen-1.5-4b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen1.5-4B-Chat": 146230,
+        "qwen-1.5-4b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-1.5-7b-chat",
@@ -76,7 +101,12 @@
         "qwen-1.5-7b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen1.5-7B-Chat": 146230,
+        "qwen-1.5-7b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-14b-chat",
@@ -89,7 +119,12 @@
         "qwen-14b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen-14B-Chat": 146230,
+        "qwen-14b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2-1.5b-instruct",
@@ -102,7 +137,12 @@
         "qwen-2-1.5b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2-1.5B-Instruct": 146230,
+        "qwen-2-1.5b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2-7b-instruct",
@@ -115,7 +155,12 @@
         "qwen-2-7b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2-7B-Instruct": 146230,
+        "qwen-2-7b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2.5-0.5b-instruct",
@@ -128,7 +173,12 @@
         "qwen-2.5-0.5b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2.5-0.5B-Instruct": 146230,
+        "qwen-2.5-0.5b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2.5-1.5b-instruct",
@@ -141,7 +191,12 @@
         "qwen-2.5-1.5b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2.5-1.5B-Instruct": 146230,
+        "qwen-2.5-1.5b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2.5-14b-instruct",
@@ -154,7 +209,12 @@
         "qwen-2.5-14b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2.5-14B-Instruct": 146230,
+        "qwen-2.5-14b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-2.5-3b-instruct",
@@ -167,7 +227,12 @@
         "qwen-2.5-3b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2.5-3B-Instruct": 146230,
+        "qwen-2.5-3b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen-7b-chat",
@@ -180,7 +245,12 @@
         "qwen-7b-chat": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen-7B-Chat": 146230,
+        "qwen-7b-chat": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "qwen2.5-7b-instruct",
@@ -193,7 +263,12 @@
         "qwen-2.5-7b-instruct": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "Qwen2.5-7B-Instruct": 146230,
+        "qwen-2.5-7b-instruct": 1000
+      },
+      "responses_after_merge": 147230
     },
     {
       "canonical": "redpajama-incite-instruct-3b-v1",
@@ -206,7 +281,12 @@
         "redpajama-incite-instruct-3b-v1": 999
       },
       "items_after_merge": 58492,
-      "items_covered_by_more_than_one_spelling": 999
+      "items_covered_by_more_than_one_spelling": 999,
+      "responses_per_spelling": {
+        "RedPajama-INCITE-Instruct-3B-v1": 146230,
+        "redpajama-incite-instruct-3b-v1": 1000
+      },
+      "responses_after_merge": 147230
     }
   ],
   "do-not-answer": [
@@ -221,7 +301,12 @@
         "deepseek-v3-0324": 938
       },
       "items_after_merge": 939,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "DeepSeek-V3-0324": 1878,
+        "deepseek-v3-0324": 939
+      },
+      "responses_after_merge": 2817
     },
     {
       "canonical": "llama-3.2-3b-instruct",
@@ -234,7 +319,12 @@
         "llama-3.2-3b-instruct": 938
       },
       "items_after_merge": 938,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "Llama-3.2-3B-Instruct": 939,
+        "llama-3.2-3b-instruct": 939
+      },
+      "responses_after_merge": 1878
     },
     {
       "canonical": "phi-4",
@@ -247,7 +337,12 @@
         "phi-4": 938
       },
       "items_after_merge": 939,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "Phi-4": 1878,
+        "phi-4": 939
+      },
+      "responses_after_merge": 2817
     },
     {
       "canonical": "phi-4-mini-instruct",
@@ -260,7 +355,12 @@
         "phi-4-mini-instruct": 938
       },
       "items_after_merge": 939,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "Phi-4-mini-instruct": 939,
+        "phi-4-mini-instruct": 939
+      },
+      "responses_after_merge": 1878
     },
     {
       "canonical": "qwen2.5-7b-instruct",
@@ -273,7 +373,12 @@
         "qwen2.5-7b-instruct": 938
       },
       "items_after_merge": 938,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "Qwen2.5-7B-Instruct": 939,
+        "qwen2.5-7b-instruct": 939
+      },
+      "responses_after_merge": 1878
     },
     {
       "canonical": "qwen3-30b-a3b-instruct-2507",
@@ -286,7 +391,12 @@
         "qwen3-30b-a3b-instruct-2507": 938
       },
       "items_after_merge": 938,
-      "items_covered_by_more_than_one_spelling": 938
+      "items_covered_by_more_than_one_spelling": 938,
+      "responses_per_spelling": {
+        "Qwen3-30B-A3B-Instruct-2507": 939,
+        "qwen3-30b-a3b-instruct-2507": 939
+      },
+      "responses_after_merge": 1878
     }
   ],
   "truthfulqa": [
@@ -301,7 +411,12 @@
         "llama-3.2-3b-instruct": 816
       },
       "items_after_merge": 820,
-      "items_covered_by_more_than_one_spelling": 786
+      "items_covered_by_more_than_one_spelling": 786,
+      "responses_per_spelling": {
+        "Llama-3.2-3B-Instruct": 790,
+        "llama-3.2-3b-instruct": 816
+      },
+      "responses_after_merge": 1606
     },
     {
       "canonical": "qwen2.5-7b-instruct",
@@ -314,7 +429,12 @@
         "qwen2.5-7b-instruct": 817
       },
       "items_after_merge": 820,
-      "items_covered_by_more_than_one_spelling": 787
+      "items_covered_by_more_than_one_spelling": 787,
+      "responses_per_spelling": {
+        "Qwen2.5-7B-Instruct": 790,
+        "qwen2.5-7b-instruct": 817
+      },
+      "responses_after_merge": 1607
     }
   ],
   "_name_map": {
