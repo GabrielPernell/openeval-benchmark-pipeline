@@ -4,9 +4,16 @@ Turns raw benchmark data into the OpenEval item schema, and exports it in the
 layout the [OpenEval HuggingFace dataset](https://huggingface.co/datasets/Open-Eval-Commons/OpenEval)
 uses.
 
-`item_schema.json` and `validator.py` are copied from
-[open-eval/OpenEval](https://github.com/open-eval/OpenEval) without changes.
-Keep them in sync with upstream.
+**This repo is the code only.** The converted items and the model responses
+are not here — they are published in the dataset linked above, and the source
+benchmarks stay with their own authors. The aggregate files under
+`model_summary/` and `site/coverage.json` are counts over that public dataset,
+not benchmark content.
+
+`validator.py` and `item_schema.json` belong to
+[open-eval/OpenEval](https://github.com/open-eval/OpenEval), not to this
+project. Copy them in from there before converting anything; the scripts expect
+them beside `convert_to_openeval.py`.
 
 ## What's here
 
@@ -19,8 +26,9 @@ openeval_pipeline/
   schema_utils.py            builds one item dict
   repo_format.py             writes the HF dataset's parquet tables
   net_utils.py               HuggingFace fetching, with retries and pacing
-  item_schema.json           |  copied from upstream,
-  validator.py               |  do not edit
+  response_format.py         writes the response table
+  add_dochop_responses.py    attaches the DocHop authors' model results
+  dochop_scoring.py          DocHop's own scoring heuristic (see Credits)
 
   loaders/                   one file per benchmark
     dsr_bench.py             all five subsets
@@ -36,10 +44,15 @@ openeval_pipeline/
     normalize_model_names.py
     summary_table.py
 
-  data_cache/                fetched source data
-  output/                    converted items, our JSON format
-  repo_export/               converted items, the HF dataset's parquet format
+  site/                      the coverage explorer on open-eval.com
+    build_coverage_json.py
+    build_explorer.py
+
+  pr_review/                 checks for incoming dataset submissions
 ```
+
+Conversions write to `data_cache/`, `output/` and `repo_export/`, which are
+created on first run and ignored here.
 
 ## Converting a benchmark
 
@@ -115,9 +128,9 @@ re-run after the dataset changes silently reuses old data. Delete
 `model_summary/parts/` for a fresh build.
 
 **The demo item's response wasn't produced by a model run.**
-`output/dsr_bench_demo_item_with_response.json` exists to show the shape of a
-complete item. Its answer was worked out by hand in an assistant session, and
-the sampling settings are `null` rather than invented. Don't treat it as
+`demo_full_item_with_response.py` writes one complete item purely to show the
+shape. Its answer was worked out by hand rather than sampled, and the
+generation settings are `null` rather than invented. Don't treat its output as
 evaluation data.
 
 ## Adding a benchmark
@@ -152,3 +165,18 @@ recorded under more than one spelling (`Phi-4` and `phi-4`), writing an audit
 file of every merge so it can be checked or undone.
 
 Requires `pyarrow`, `fsspec`, and `requests`.
+
+## Credits
+
+`dochop_scoring.py` is a port of the scoring in
+[ZhuoranYu/dochop-vlmevalkit](https://github.com/ZhuoranYu/dochop-vlmevalkit)
+(Apache-2.0), so the scores attached to DocHop responses are the authors' own
+rather than an interpretation of them. It reproduces every published per-model
+accuracy exactly.
+
+The benchmarks converted here belong to their respective authors: DSR-Bench
+(MIT), Vision2Web (Apache-2.0), and DocHop. Check each one's terms before
+redistributing its data.
+
+Earlier commits in this history mention data files that this repo doesn't
+carry; the history was filtered to keep code only.

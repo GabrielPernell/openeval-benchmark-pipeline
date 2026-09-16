@@ -1,40 +1,32 @@
-# Internal working notes: third-party contact details and in-progress
-# assessments of other groups' releases.
-openeval_context_handoff.md
+# Fetched source data and conversion outputs. This repo is code only -- the
+# converted items and responses are published in the OpenEval HF dataset.
+data_cache/
+output/
+output_with_responses/
+repo_export/
 
-# Local demonstration fixture: deliberately broken items used to learn how
-# validator.py classifies violations. Not part of the pipeline.
-broken_item_examples.json
+# Upstream files copied in from open-eval/OpenEval, not part of this project.
+validator.py
+item_schema.json
 
 # Tooling for reviewing incoming HF dataset PRs is tracked; the id dumps,
 # reports and downloaded artifacts it produces are not.
 pr_review/*
 !pr_review/*.py
 
-# Validation reports are regenerable logs (~60 MB, and PowerShell writes them
-# as UTF-16). The converted items in output/*.json ARE the deliverable.
-output/validation*
-
 # Model-summary ID listings are ~190 MB each and regenerable from parts/.
 # The counts, tables, and merge audits are small and are tracked.
-summaries_output/
 model_summary/parts/
 model_summary/*_full.json
 *.zip
 
 # Run logs
 *.log
-repo_export_log.txt
+
+# Local editor/preview config (machine-specific absolute paths).
+.claude/
 
 # Python
 __pycache__/
 *.py[cod]
 .venv/
-
-# The nested JSON with responses is ~139 MB and duplicates the response
-# parquet tables, which are the deliverable. Regenerate it with
-# add_dochop_responses.py against the authors' results directory.
-output_with_responses/*.json
-
-# Local preview config for the site (machine-specific absolute paths).
-.claude/
