@@ -32,7 +32,15 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import validator
+_MISSING_VALIDATOR = """validator.py is missing. It belongs to open-eval/OpenEval rather than this
+repo, so it is not checked in here. Copy validator.py and item_schema.json
+from https://github.com/open-eval/OpenEval into the pipeline root, then run
+this again."""
+
+try:
+    import validator
+except ModuleNotFoundError:
+    raise SystemExit(_MISSING_VALIDATOR)
 
 ITEMS_PATH = "output/dsr_bench_main_items.json"
 OUT_PATH = "output/dsr_bench_demo_item_with_response.json"

@@ -23,7 +23,15 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import validator  # noqa: E402
+_MISSING_VALIDATOR = """validator.py is missing. It belongs to open-eval/OpenEval rather than this
+repo, so it is not checked in here. Copy validator.py and item_schema.json
+from https://github.com/open-eval/OpenEval into the pipeline root, then run
+this again."""
+
+try:
+    import validator  # noqa: E402
+except ModuleNotFoundError:
+    raise SystemExit(_MISSING_VALIDATOR)
 
 BASE = ("https://huggingface.co/datasets/Open-Eval-Commons/OpenEval/resolve/"
         "refs%2Fpr%2F3/submissions/metasafetybench/")
