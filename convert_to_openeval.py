@@ -23,9 +23,9 @@ python3 convert_to_openeval.py --validate-only output/dsr_bench_main_items.json
 Adding a new dataset
 ---------------------
 See adapter_base.py's docstring. In short: write loaders/<name>.py with a
-DatasetAdapter subclass, then register it in get_adapter() below. dsr_bench
-and visionwebdev are both implemented and verified against real data;
-loaders/dochop.py is a scaffold, blocked on that dataset's release.
+DatasetAdapter subclass, then register it in get_adapter() below. All four
+loaders are implemented and verified against real data. helm is the only one
+whose source also carries model responses; see add_helm_responses.py.
 """
 import argparse
 import os
@@ -37,6 +37,7 @@ from schema_utils import build_item, generate_time, save_json, load_json
 from loaders.dsr_bench import DSRBenchAdapter
 from loaders.dochop import DocHopAdapter
 from loaders.visionwebdev import VisionWebDevAdapter
+from loaders.helm import HELMAdapter
 _MISSING_VALIDATOR = """validator.py is missing. It belongs to open-eval/OpenEval rather than this
 repo, so it is not checked in here. Copy validator.py and item_schema.json
 from https://github.com/open-eval/OpenEval into the pipeline root, then run
@@ -53,6 +54,16 @@ def get_adapter(dataset: str, subset: str):
         return DSRBenchAdapter(subset=subset)
     if dataset == "dochop":
         return DocHopAdapter()
+    if dataset == "helm":
+        # HELM's subsets are its scenarios; the run folders are named after
+        # the scenario group, so "commonsense" selects the OpenBookQA runs.
+        if subset == "main":
+            raise ValueError(
+                "--subset is required for helm: a scenario name such as commonsense. "
+                "List what a release has with "
+                "fetchers/fetch_helm_cache.py --list-scenarios."
+            )
+        return HELMAdapter(subset=subset)
     if dataset == "visionwebdev":
         # VisionWebDev's subsets are its three task types (webpage/frontend/
         # website); "main" is the DSR-Bench default and means nothing here.
@@ -62,7 +73,7 @@ def get_adapter(dataset: str, subset: str):
                 "frontend (Level 2), website (Level 3)."
             )
         return VisionWebDevAdapter(subset=subset)
-    raise ValueError(f"Unknown --dataset '{dataset}'. Expected one of: dsr_bench, dochop, visionwebdev")
+    raise ValueError(f"Unknown --dataset '{dataset}'. Expected one of: dsr_bench, dochop, visionwebdev, helm")
 
 
 def run_validation(items: list) -> int:
@@ -81,10 +92,12 @@ def run_validation(items: list) -> int:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", choices=["dsr_bench", "dochop", "visionwebdev"], help="Which dataset adapter to use")
+    ap.add_argument("--dataset", choices=["dsr_bench", "dochop", "visionwebdev", "helm"],
+                    help="Which dataset adapter to use")
     ap.add_argument("--subset", default="main",
                     help="Dataset-specific subset/config. DSR-Bench: main|challenge|spatial|"
-                         "natural|code (default: main). VisionWebDev: webpage|frontend|website.")
+                         "natural|code (default: main). VisionWebDev: webpage|frontend|website. "
+                         "HELM: a scenario name such as commonsense.")
     ap.add_argument("--mode", choices=["cache", "hf"], default="cache", help="'cache' = local JSON file, 'hf' = live network fetch")
     ap.add_argument("--source", default=None, help="Path to local cache file (required if --mode cache)")
     ap.add_argument("--limit", type=int, default=None, help="Max number of rows to convert")

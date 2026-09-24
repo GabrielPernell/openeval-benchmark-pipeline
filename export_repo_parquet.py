@@ -28,6 +28,7 @@ from schema_utils import generate_time
 from loaders.dsr_bench import DSRBenchAdapter, SUBSETS as DSR_SUBSETS
 from loaders.visionwebdev import VisionWebDevAdapter, SUBSETS as VWD_SUBSETS
 from loaders.dochop import DocHopAdapter
+from loaders.helm import HELMAdapter
 
 # benchmark slug -> (list of (adapter, source, mode), bench/ registry row)
 def plan(args):
@@ -54,6 +55,24 @@ def plan(args):
                 "dataset_url": "https://huggingface.co/datasets/zai-org/Vision2Web",
                 "benchmark_tags": ["web-development", "code-generation", "vision-language",
                                    "agent-verification", "multimodal"],
+            },
+        ),
+        # HELM scenarios are exported one at a time under the scenario's own
+        # name, which is how the repo's existing HELM-derived benchmarks are
+        # keyed (gpqa, ifeval, mmlu-pro, ...). Every field below comes from the
+        # run's scenario.json; the export asserts that afterwards.
+        "openbookqa": (
+            [(HELMAdapter(subset="commonsense"), "data_cache/helm_lite_v1.13.0", "cache")],
+            {
+                # Lowercase, so item_metadata.source resolves to this row.
+                "benchmark_name": "openbookqa",
+                # The HELM release. The repo's existing HELM-derived rows leave
+                # this empty, so there is no way to tell which run they came from.
+                "benchmark_version": "lite v1.13.0",
+                "paper_url": "https://aclanthology.org/D18-1260.pdf",
+                "dataset_url": "https://github.com/stanford-crfm/helm/blob/main/src/helm/"
+                               "benchmark/scenarios/commonsense_scenario.py",
+                "benchmark_tags": ["knowledge", "multiple_choice"],
             },
         ),
         "dochop": (
@@ -114,6 +133,18 @@ def main():
         bench_rows.append(bench_row)
 
     bench_path = os.path.join(args.out, "bench", "train-00000-of-00001.parquet")
+    # bench/ is one table for every benchmark, so a --only run would otherwise
+    # replace the whole registry with its single row. Keep the rows already on
+    # disk that this run didn't rebuild.
+    if os.path.exists(bench_path):
+        import pyarrow.parquet as pq
+        fresh = {r["benchmark_name"] for r in bench_rows}
+        kept = [r for r in pq.read_table(bench_path).to_pylist()
+                if r["benchmark_name"] not in fresh]
+        if kept:
+            print(f"[bench] keeping {len(kept)} existing row(s): "
+                  f"{', '.join(r['benchmark_name'] for r in kept)}", file=sys.stderr)
+        bench_rows = kept + bench_rows
     write_bench(bench_rows, bench_path)
     print(f"[bench] wrote {len(bench_rows)} registry row(s) -> {bench_path}")
 

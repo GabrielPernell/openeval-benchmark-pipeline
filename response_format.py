@@ -63,7 +63,8 @@ def response_id(item_id: str, model_name: str, trial: int = 0) -> str:
 
 def build_response_json(item_id, model_name, request_input, response_text,
                         scores, external_resources=(), generation_parameters=None,
-                        system_instruction="", trial=0, size=None):
+                        system_instruction="", trial=0, size=None,
+                        demonstrations=()):
     """Nested form, for the JSON items this pipeline writes."""
     return {
         "response_id": response_id(item_id, model_name, trial),
@@ -85,7 +86,9 @@ def build_response_json(item_id, model_name, request_input, response_text,
         },
         "item_adaptation": {
             "request_input": list(request_input),
-            "demonstrations": [],
+            # Few-shot examples, when the source records them. DocHop is
+            # zero-shot; HELM Lite runs are 5-shot.
+            "demonstrations": [str(d) for d in demonstrations],
             "external_resources": [dict(r) for r in external_resources],
         },
         "response_content": [response_text],

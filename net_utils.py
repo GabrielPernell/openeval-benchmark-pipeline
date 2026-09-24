@@ -30,15 +30,24 @@ def hf_headers() -> dict:
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
-def get_with_retry(url: str, params: dict | None = None, timeout: int = 30, stream: bool = False):
-    """GET with exponential backoff on rate-limit/transient errors."""
+def get_with_retry(url: str, params: dict | None = None, timeout: int = 30,
+                   stream: bool = False, headers: dict | None = None):
+    """GET with exponential backoff on rate-limit/transient errors.
+
+    `headers` defaults to the HuggingFace Authorization header. Callers
+    fetching from anywhere else must pass their own (`{}` for none) -- HF_TOKEN
+    is a credential and has no business being sent to another host.
+    """
     import requests
+
+    if headers is None:
+        headers = hf_headers()
 
     delay = 2.0
     last_status = None
     for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.get(url, params=params, headers=hf_headers(),
+            resp = requests.get(url, params=params, headers=headers,
                                 timeout=timeout, stream=stream)
         except requests.RequestException as exc:
             # Timeouts and dropped connections are as transient as a 503 and
@@ -57,13 +66,15 @@ def get_with_retry(url: str, params: dict | None = None, timeout: int = 30, stre
         last_status = resp.status_code
         if resp.status_code not in RETRYABLE:
             hint = ""
-            if resp.status_code in (401, 403):
+            if resp.status_code in (401, 403) and "huggingface.co" in url:
                 hint = (
                     "\nA 403 here usually means an outbound proxy is blocking huggingface.co "
                     "(some sandboxes do) -- fall back to --mode cache with a pre-fetched JSON "
                     "file (see data_cache/ for the format)."
                 )
-            raise RuntimeError(f"HF request failed ({resp.status_code}): {resp.text[:300]}{hint}")
+            host = url.split("/")[2] if "//" in url else url
+            raise RuntimeError(
+                f"request to {host} failed ({resp.status_code}): {resp.text[:300]}{hint}")
 
         try:
             wait = float(resp.headers.get("Retry-After", ""))
