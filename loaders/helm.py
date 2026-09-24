@@ -78,7 +78,21 @@ class HELMAdapter(DatasetAdapter):
         self.subset = subset
         self.release = ""
         self.project = ""
+        self.method = ""
         self.run_folders: list[str] = []
+
+    @property
+    def is_multiple_choice(self) -> bool:
+        """Whether the answer is one of the references rather than free text.
+
+        HELM's `multiple_choice_joint` puts the options in `references` and the
+        model replies with a letter. Its `generation` methods put the expected
+        answer there instead, and the model writes it out. The two need
+        different reference mappings, and guessing wrong is silent: a
+        generation item would get `{"answer": "A"}` for a question whose answer
+        is a number.
+        """
+        return self.method.startswith("multiple_choice")
 
     # ---- loading -------------------------------------------------------
     def load_rows(self, source: str, limit: int | None = None, mode: str = "cache"):
@@ -114,6 +128,12 @@ class HELMAdapter(DatasetAdapter):
 
             with open(os.path.join(run_dir, "scenario_state.json"), encoding="utf-8") as f:
                 state = json.load(f)
+            method = state["adapter_spec"].get("method", "")
+            if self.method and method != self.method:
+                raise ValueError(
+                    f"runs of {self.subset} disagree about the adaptation method "
+                    f"({self.method!r} vs {method!r}); convert them separately.")
+            self.method = method
 
             for req in state["request_states"]:
                 inst = req["instance"]
@@ -197,13 +217,22 @@ class HELMAdapter(DatasetAdapter):
     def repo_input(self, row: dict) -> dict:
         payload = {
             "question": row["question"],
-            "options": row["options"],
             "split": row["split"],
             "helm_instance_id": row["helm_instance_id"],
         }
+        # Only a multiple-choice item has options; for a generation scenario
+        # `references` holds the expected answer, not a list to choose from.
+        if self.is_multiple_choice:
+            payload["options"] = row["options"]
         return payload
 
     def repo_references(self, row: dict) -> list:
+        if not self.is_multiple_choice:
+            # The expected answer(s) as written, matching how DocHop's
+            # references carry the answer text.
+            return [r["output"]["text"] for r in row["references_raw"]
+                    if "correct" in (r.get("tags") or [])] or \
+                   [r["output"]["text"] for r in row["references_raw"]]
         if row["answer_index"] is None:
             return []
         return [{"answer": row["answer"], "answer_index": row["answer_index"]}]

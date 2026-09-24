@@ -75,6 +75,19 @@ def plan(args):
                 "benchmark_tags": ["knowledge", "multiple_choice"],
             },
         ),
+        "gsm": (
+            [(HELMAdapter(subset="gsm"), "data_cache/helm_lite_gsm", "cache")],
+            {
+                "benchmark_name": "gsm",
+                "benchmark_version": "lite v1.13.0",
+                # HELM's description names the dataset (GSM8K) but links no
+                # paper, so this is the GSM8K paper rather than a HELM URL.
+                "paper_url": "https://arxiv.org/abs/2110.14168",
+                "dataset_url": "https://github.com/stanford-crfm/helm/blob/main/src/helm/"
+                               "benchmark/scenarios/gsm_scenario.py",
+                "benchmark_tags": ["reasoning", "math"],
+            },
+        ),
         "dochop": (
             [(DocHopAdapter(), "data_cache/dochop_raw.json", "cache")],
             {

@@ -63,17 +63,39 @@ from loaders.helm import HELMAdapter, read_manifest  # noqa: E402
 from response_format import (build_response_json, json_to_parquet_row,  # noqa: E402
                              write_responses)
 
-# The scoring metrics, chosen over HELM's 27 per-instance stats.
-SCORING_METRICS = [
-    "exact_match", "exact_match@5",
-    "quasi_exact_match", "quasi_exact_match@5",
-    "prefix_exact_match", "prefix_exact_match@5",
-    "quasi_prefix_exact_match", "quasi_prefix_exact_match@5",
-    "max_prob", "logprob",
-]
+# Which of HELM's per-instance stats are measurements of the harness rather
+# than of the answer. Everything NOT matching these is treated as a score.
+#
+# A hardcoded list of metric names cannot work: every scenario measures
+# something different. OpenBookQA reports exact_match and its quasi/prefix
+# variants; gsm reports final_number_exact_match and exact_match_indicator;
+# narrative_qa reports bleu and f1. A fixed list silently yields empty scores
+# on any scenario it wasn't written for -- which is exactly what the upstream
+# converter's hardcoded rouge/summac list does.
+#
+# Instrumentation, by contrast, is named consistently across scenarios, so it
+# is the side worth enumerating.
+INSTRUMENTATION_PREFIXES = (
+    "num_",              # num_prompt_tokens, num_references, num_bytes, ...
+    "training_",         # training_co2_cost, training_energy_cost
+    "finish_reason_",    # why generation stopped
+)
+INSTRUMENTATION_EXACT = {
+    "inference_runtime",
+    "batch_size",
+    "prompt_truncated",
+}
 
-# HELM's own headline metric, used for the cross-check against stats.json.
-PRIMARY_METRIC = "exact_match"
+
+def is_scoring_metric(name: str) -> bool:
+    return not (name.startswith(INSTRUMENTATION_PREFIXES)
+                or name in INSTRUMENTATION_EXACT)
+
+
+def scoring_metrics(stats: list) -> list:
+    """The scoring metric names present in one run's per-instance stats."""
+    names = {s["name"]["name"] for row in stats for s in row["stats"]}
+    return sorted(n for n in names if is_scoring_metric(n))
 
 _SIZE_RE = re.compile(r"[0-9.]+b")
 
@@ -103,11 +125,11 @@ def demonstrations_for(req: dict, adapter_spec: dict) -> list:
     return [c.strip() for c in head.split(adapter_spec["input_prefix"]) if out_prefix in c]
 
 
-def scores_for(stats_row: dict) -> list:
+def scores_for(stats_row: dict, metrics: list) -> list:
     """The selected metrics for one instance, as schema score dicts."""
     by_name = {s["name"]["name"]: s for s in stats_row["stats"]}
     out = []
-    for name in SCORING_METRICS:
+    for name in metrics:
         stat = by_name.get(name)
         if stat is None:
             continue
@@ -161,6 +183,11 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
     expect_demos = adapter_spec.get("max_train_instances")
 
     stats_by_key = {(s["instance_id"], s["train_trial_index"]): s for s in stats}
+    metrics = scoring_metrics(stats)
+    if not metrics:
+        sys.exit(f"no scoring metrics found in this run's per-instance stats; every name "
+                 f"looked like instrumentation. Check INSTRUMENTATION_* against "
+                 f"{sorted({x['name']['name'] for r in stats for x in r['stats']})}")
     trials = collections.Counter()
     out = []
 
@@ -194,7 +221,7 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
             model_name=model_name,
             request_input=[req["request"]["prompt"]],
             response_text=text,
-            scores=scores_for(stats_row),
+            scores=scores_for(stats_row, metrics),
             generation_parameters={
                 "temperature": adapter_spec.get("temperature"),
                 "do_sample": bool(adapter_spec.get("temperature")),
@@ -207,17 +234,17 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
             size=model_size(model_name),
             demonstrations=demos,
         ))
-    return model_name, out
+    return model_name, out, metrics
 
 
-def published_primary(run_stats: list) -> float | None:
-    """The run-level mean of the primary metric, as HELM publishes it."""
+def published_means(run_stats: list) -> dict:
+    """{metric: run-level mean} for the unperturbed test split, as HELM reports it."""
+    out = {}
     for s in run_stats:
         name = s.get("name", {})
-        if name.get("name") == PRIMARY_METRIC and name.get("split") == "test" \
-                and "perturbation" not in name:
-            return s.get("mean")
-    return None
+        if name.get("split") == "test" and "perturbation" not in name:
+            out.setdefault(name.get("name"), s.get("mean"))
+    return out
 
 
 def main():
@@ -249,32 +276,43 @@ def main():
     checks = []
     for folder in runs:
         state, stats, run_stats = load_run(args.cache, folder)
-        model_name, responses = responses_for_run(state, stats, id_map)
+        model_name, responses, metrics = responses_for_run(state, stats, id_map)
         for r in responses:
             by_item[r["response_id"].rsplit("_", 2)[0]].append(r)
-        ours = [s["value"] for r in responses for s in
-                [next((x for x in r["scores"] if x["metric"]["name"] == PRIMARY_METRIC), None)]
-                if s]
-        mine = sum(ours) / len(ours) if ours else None
-        checks.append((model_name, mine, published_primary(run_stats), len(responses)))
-        print(f"      {model_name:<18} {len(responses):>5} responses")
+
+        # Our mean per metric, against HELM's published run-level mean.
+        published = published_means(run_stats)
+        comparisons = []
+        for name in metrics:
+            if name not in published or published[name] is None:
+                continue
+            vals = [s["value"] for r in responses for s in r["scores"]
+                    if s["metric"]["name"] == name]
+            if vals:
+                comparisons.append((name, sum(vals) / len(vals), published[name]))
+        checks.append((model_name, metrics, comparisons))
+        print(f"      {model_name:<18} {len(responses):>5} responses, "
+              f"{len(metrics)} metrics: {', '.join(metrics)}")
 
     # Cross-check against HELM's own aggregates, the way DocHop's conversion was
-    # checked against the authors' published accuracies.
-    print(f"[4/5] Cross-checking mean {PRIMARY_METRIC} against each run's stats.json...")
+    # checked against the authors' published accuracies. A run we cannot check
+    # at all is a failure, not something to pass over: that is how the first
+    # gsm attempt wrote 4,000 responses with no accuracy score and exited 0.
+    print("[4/5] Cross-checking our means against each run's stats.json...")
     bad = []
-    for model_name, mine, published, n in checks:
-        if published is None:
-            print(f"      {model_name:<18} ours={mine!r}  published=(absent) -- skipped")
+    for model_name, metrics, comparisons in checks:
+        if not comparisons:
+            print(f"      {model_name:<18} NOTHING COMPARABLE")
+            bad.append(f"{model_name} (no metric appears in both)")
             continue
-        ok = mine is not None and abs(mine - published) < 1e-9
-        print(f"      {model_name:<18} ours={mine:.6f}  published={published:.6f}  "
-              f"{'OK' if ok else 'MISMATCH'}")
-        if not ok:
-            bad.append(model_name)
+        for name, mine, published in comparisons:
+            ok = abs(mine - published) < 1e-9
+            print(f"      {model_name:<18} {name:<26} ours={mine:.6f} "
+                  f"published={published:.6f}  {'OK' if ok else 'MISMATCH'}")
+            if not ok:
+                bad.append(f"{model_name}/{name}")
     if bad:
-        sys.exit(f"mean {PRIMARY_METRIC} does not reproduce HELM's published value for: "
-                 f"{', '.join(bad)}")
+        sys.exit("cross-check failed for: " + ", ".join(bad))
 
     slug = args.slug or items[0]["item_metadata"]["source"]["benchmark_name"].lower()
     total = 0
