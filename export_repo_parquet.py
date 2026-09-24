@@ -88,6 +88,22 @@ def plan(args):
                 "benchmark_tags": ["reasoning", "math"],
             },
         ),
+        # 355 test + 115 validation instances. Both are kept, with each item's
+        # split recorded in input[0]; HELM publishes a score per split and our
+        # cross-check verifies both. Note an average over all 470 matches
+        # neither published figure -- filter by split first.
+        "narrativeqa": (
+            [(HELMAdapter(subset="narrative_qa"),
+              "data_cache/helm_lite_narrative_qa", "cache")],
+            {
+                "benchmark_name": "narrativeqa",
+                "benchmark_version": "lite v1.13.0",
+                "paper_url": "https://arxiv.org/abs/1712.07040",
+                "dataset_url": "https://github.com/stanford-crfm/helm/blob/main/src/helm/"
+                               "benchmark/scenarios/narrativeqa_scenario.py",
+                "benchmark_tags": ["question_answering"],
+            },
+        ),
         "dochop": (
             [(DocHopAdapter(), "data_cache/dochop_raw.json", "cache")],
             {

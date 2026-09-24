@@ -190,6 +190,7 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
                  f"{sorted({x['name']['name'] for r in stats for x in r['stats']})}")
     trials = collections.Counter()
     out = []
+    splits = []
 
     for req in state["request_states"]:
         inst = req["instance"]
@@ -211,6 +212,7 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
 
         completions = req["result"]["completions"]
         text = completions[0]["text"] if completions else ""
+        splits.append(inst.get("split"))
 
         item_id = id_map[helm_id]
         trial = trials[(item_id, model_name)]
@@ -234,16 +236,21 @@ def responses_for_run(state: dict, stats: list, id_map: dict) -> list:
             size=model_size(model_name),
             demonstrations=demos,
         ))
-    return model_name, out, metrics
+    return model_name, out, metrics, splits
 
 
 def published_means(run_stats: list) -> dict:
-    """{metric: run-level mean} for the unperturbed test split, as HELM reports it."""
+    """{(split, metric): run-level mean}, unperturbed, as HELM reports it.
+
+    Keyed by split because a scenario can evaluate more than one. narrative_qa
+    mixes 115 `valid` instances with 355 `test` ones and publishes a separate
+    figure for each, so a single pooled mean matches neither.
+    """
     out = {}
     for s in run_stats:
         name = s.get("name", {})
-        if name.get("split") == "test" and "perturbation" not in name:
-            out.setdefault(name.get("name"), s.get("mean"))
+        if name.get("perturbation") is None:
+            out.setdefault((name.get("split"), name.get("name")), s.get("mean"))
     return out
 
 
@@ -276,23 +283,28 @@ def main():
     checks = []
     for folder in runs:
         state, stats, run_stats = load_run(args.cache, folder)
-        model_name, responses, metrics = responses_for_run(state, stats, id_map)
+        model_name, responses, metrics, splits = responses_for_run(state, stats, id_map)
         for r in responses:
             by_item[r["response_id"].rsplit("_", 2)[0]].append(r)
 
-        # Our mean per metric, against HELM's published run-level mean.
+        # Our mean per (split, metric), against HELM's published figure for the
+        # same pair. Pooling splits would match neither when a scenario has
+        # more than one.
         published = published_means(run_stats)
+        ours = collections.defaultdict(list)
+        for resp, split in zip(responses, splits):
+            for s in resp["scores"]:
+                ours[(split, s["metric"]["name"])].append(s["value"])
         comparisons = []
-        for name in metrics:
-            if name not in published or published[name] is None:
+        for key in sorted(ours, key=lambda k: (str(k[0]), k[1])):
+            if published.get(key) is None:
                 continue
-            vals = [s["value"] for r in responses for s in r["scores"]
-                    if s["metric"]["name"] == name]
-            if vals:
-                comparisons.append((name, sum(vals) / len(vals), published[name]))
+            vals = ours[key]
+            comparisons.append((f"{key[0]}/{key[1]}", sum(vals) / len(vals), published[key]))
         checks.append((model_name, metrics, comparisons))
         print(f"      {model_name:<18} {len(responses):>5} responses, "
-              f"{len(metrics)} metrics: {', '.join(metrics)}")
+              f"{len(metrics)} metrics, splits: "
+              f"{dict(collections.Counter(splits))}")
 
     # Cross-check against HELM's own aggregates, the way DocHop's conversion was
     # checked against the authors' published accuracies. A run we cannot check
@@ -307,7 +319,7 @@ def main():
             continue
         for name, mine, published in comparisons:
             ok = abs(mine - published) < 1e-9
-            print(f"      {model_name:<18} {name:<26} ours={mine:.6f} "
+            print(f"      {model_name:<18} {name:<34} ours={mine:.6f} "
                   f"published={published:.6f}  {'OK' if ok else 'MISMATCH'}")
             if not ok:
                 bad.append(f"{model_name}/{name}")
