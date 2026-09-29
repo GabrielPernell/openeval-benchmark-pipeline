@@ -4,6 +4,7 @@ data_cache/
 output/
 output_with_responses/
 repo_export/
+submissions/
 
 # Upstream files copied in from open-eval/OpenEval, not part of this project.
 validator.py
