@@ -54,7 +54,6 @@ python -X utf8 add_ltb_responses.py --items output/ltb_items.json
 """
 import argparse
 import collections
-import gzip
 import json
 import os
 import sys
@@ -63,18 +62,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetchers"))
 
 import fetch_ltb_cache
-
-_MISSING_VALIDATOR = """validator.py is missing. It belongs to open-eval/OpenEval rather than this
-repo, so it is not checked in here. Copy validator.py and item_schema.json
-from https://github.com/open-eval/OpenEval into the pipeline root, then run
-this again."""
-
-try:
-    import validator
-except ModuleNotFoundError:
-    raise SystemExit(_MISSING_VALIDATOR)
 from loaders.ltb import LTBAdapter, media_mime
 from response_format import build_response_json
+from submission_utils import check_items, counts, write_jsonl_gz
 
 VERIFIER = "google/gemini-3.1-pro-preview"
 METRIC = "passes_all_rules"
@@ -253,16 +243,7 @@ def main():
         raise AssertionError("response count does not add up")
 
     print("[3/4] Checking...")
-    problems = []
-    ids = [r["response_id"] for it in items for r in it["responses"]]
-    if len(ids) != len(set(ids)):
-        problems.append(f"{len(ids) - len(set(ids))} duplicate response ids")
-    vio = collections.Counter()
-    for it in items:
-        ok, vios = validator.validate_entry(it)
-        for v in vios:
-            vio[f"{v['field']} ({v['violation_type'].__name__})"] += 1
-    problems += [f"validator: {k} x{n}" for k, n in sorted(vio.items())]
+    problems = check_items(items)
 
     ours = pass_rates(rows)
     print(f"      {'model':<24} {'paper':>6} {'ours':>6}")
@@ -277,16 +258,14 @@ def main():
     print("[4/4] Writing the submission folder...")
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, OUT_NAME)
-    with gzip.open(out_path, "wt", encoding="utf-8") as f:
-        for it in items:
-            f.write(json.dumps(it, ensure_ascii=False) + "\n")
-    models = {r["model"]["name"] for it in items for r in it["responses"]}
+    write_jsonl_gz(items, out_path)
+    n_items, n_resp, n_models = counts(items)
     texts = [r["response_content"][0] for it in items for r in it["responses"]]
-    write_readme(args.out, len(items), n_resp, len(models), skipped,
+    write_readme(args.out, n_items, n_resp, n_models, skipped,
                  n_empty=sum(t == "" for t in texts),
                  n_teapot=sum(t == '"teapot"' for t in texts))
     print(f"      -> {out_path} ({os.path.getsize(out_path) / 1e6:.1f} MB), "
-          f"{len(items)} items, {n_resp} responses, {len(models)} models")
+          f"{n_items} items, {n_resp} responses, {n_models} models")
 
     if problems:
         print("\nPROBLEMS:")
