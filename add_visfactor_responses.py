@@ -20,16 +20,18 @@ Prompts
 -------
 `request_input` is the authors' build_prompt (visfactor_scoring.py): the
 question with `<br>` as newlines and <ADDITIONAL_n> filled in, split around
-the images, which are referenced by viewer-row URL as in the items. The one
-exception is Qwen-2-VL-72B: its config entry leaves VLMEvalKit's Qwen prompt
-on, which for a VQA-type dataset sends all images first, then the raw
-question, plus a fixed suffix (vlmeval/vlm/qwen2_vl/prompt.py,
-_build_vqa_prompt). The Qwen2.5-VL entries turn it off.
+the images, which are referenced by viewer-row URL as in the items. The paper
+gives one final prompt per subtest for every model (Appendix E), so all 39
+models get it. (The lab's config would leave VLMEvalKit's own Qwen prompt on
+for Qwen-2-VL-72B; the paper describes no such exception, and it is followed.)
 
 Generation settings come from the lab's vlmeval/config.py entry for each
-model, with the wrapper class's defaults where the entry sets nothing. Models
-with no entry there (newer than the config), or with two candidate entries
-that disagree (Qwen-2.5-VL-32B), are left null.
+model, with the wrapper class's defaults where the entry sets nothing, except
+where that contradicts the paper (§3.1: temperature 0 or minimal for all
+models, greedy decoding): GPT-4o-Mini's entry has temperature 0.5, the value
+of the paper's separate temperature ablation, and LLaMA-3.2's wrapper samples
+at 0.6. Those follow the paper. Models with no entry (newer than the config),
+or with two candidate entries that disagree (Qwen-2.5-VL-32B), are left null.
 
 Scores
 ------
@@ -74,9 +76,6 @@ METRIC = "correct"
 OUT_DIR = "submissions/visfactor"
 OUT_NAME = "visfactor.jsonl.gz"
 
-QWEN_VQA_SUFFIX = "\nPlease try to answer the question with short words or phrases if possible."
-QWEN_CUSTOM_PROMPT = {"Qwen-2-VL-72B"}
-
 # From the model's name; closed models have no published size. Kimi-K2.5 and
 # GLM-5V-Turbo are left empty because their sizes could not be confirmed.
 SIZES = {
@@ -96,16 +95,18 @@ def _gen(temperature=None, max_tokens=None, top_p=None, top_k=None, do_sample=No
 
 # vlmeval/config.py entry -> settings. Defaults of the wrapper classes:
 # GPT4V/Claude3V/QwenVLAPI max_tokens 2048; Qwen2VLChat max_new_tokens 2048,
-# top_p 0.001, top_k 1, temperature 0.01; llama_vision on an Instruct
-# checkpoint do_sample=True, temperature 0.6, top_p 0.9, and max_new_tokens
-# 512 for a VQA-type dataset.
+# top_p 0.001, top_k 1, temperature 0.01; llama_vision max_new_tokens 512 for
+# a VQA-type dataset. Where the code contradicts the paper's "temperature 0 or
+# minimal for all models ... greedy decoding" (§3.1), the paper wins:
+# GPT-4o-Mini's entry says 0.5 (the paper's temperature ablation) and
+# llama_vision samples at 0.6 on Instruct checkpoints.
 GENERATION = {
     "o1-2024-12-17": _gen(0.0, 16384),
     "o3-2025-04-16": _gen(0.0, 16384),
     "o4-Mini-2025-04-16": _gen(0.0, 16384),
     "GPT-4.1-2025-04-14": _gen(0.0, 2048),
     "GPT-4o-2024-11-20": _gen(0.0, 2048),
-    "GPT-4o-Mini-2024-07-18": _gen(0.5, 2048),
+    "GPT-4o-Mini-2024-07-18": _gen(0.0, 2048),
     "GPT-5-Mini-2025-08-07": _gen(0.0, 2048),
     "GPT-5.1-2025-11-13": _gen(0.0, 2048),
     "Gemini-2.5-Flash": _gen(0.0, 2048),
@@ -122,8 +123,8 @@ GENERATION = {
     "Moonshot-V1-128K-Vision": _gen(0.0, 2048),
     "Qwen-2-VL-72B": _gen(0.01, 2048, top_p=0.001, top_k=1),
     "Qwen-2.5-VL-72B": _gen(0.01, 2048, top_p=0.001, top_k=1),
-    "LLaMA-3.2-11B-Vision": _gen(0.6, 512, top_p=0.9, do_sample=True),
-    "LLaMA-3.2-90B-Vision": _gen(0.6, 512, top_p=0.9, do_sample=True),
+    "LLaMA-3.2-11B-Vision": _gen(0.0, 512, do_sample=False),
+    "LLaMA-3.2-90B-Vision": _gen(0.0, 512, do_sample=False),
 }
 
 
@@ -152,10 +153,7 @@ def image_part(src, k):
     return {"type": "image", "url": VIEWER_ROW_URL.format(src["index"]), "image_index": k}
 
 
-def request_input(model, src):
-    if model in QWEN_CUSTOM_PROMPT:
-        return ([image_part(src, k) for k in range(len(src["image"]))]
-                + [src["question"] + QWEN_VQA_SUFFIX])
+def request_input(src):
     return [text if kind == "text" else image_part(src, text)
             for kind, text in build_prompt(src["question"], src["additional"], len(src["image"]))]
 
@@ -212,7 +210,7 @@ def main():
             item["responses"].append(build_response_json(
                 item_id=item["item_id"],
                 model_name=model,
-                request_input=request_input(model, src),
+                request_input=request_input(src),
                 response_text=row["prediction"],
                 scores=[{"name": METRIC, "models": [],
                          "extra_artifacts": [{"type": "extracted_answer", "content": pred}],
@@ -284,14 +282,13 @@ rows into test questions (see Scores).
 
 - **Prompt.** `request_input` is the prompt the authors' code builds
   (`build_prompt` in `vlmeval/dataset/visfactor.py`): the filled-in question,
-  split around the images, which are referenced as in the items. Qwen-2-VL-72B
-  is the exception: its configuration leaves VLMEvalKit's Qwen prompt on,
-  which sends the images first, then the unfilled question with
-  "Please try to answer the question with short words or phrases if
-  possible." appended.
-- **Generation parameters** are taken from the authors' VLMEvalKit
-  configuration for the {with_settings} models listed in it, and are null for
-  the others.
+  split around the images, which are referenced as in the items. As in the
+  paper (Appendix E), every model gets the same prompt for a given subtest.
+- **Generation parameters.** The paper (§3.1) sets temperature to 0 or
+  minimal for all models, with greedy decoding. For the {with_settings} models
+  in the authors' VLMEvalKit configuration, the exact values (and token
+  limits) are recorded from it, matching the paper; for the others they are
+  not published and are left null.
 - **Model size** is filled in where it is known and left empty otherwise.
 - **Reasoning traces.** Seed-2.0 Pro, Lite and Mini were run with reasoning
   traces (a median of 22,000-56,000 characters per response, depending on
